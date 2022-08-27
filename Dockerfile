@@ -14,7 +14,8 @@ WORKDIR /app
 COPY . .
 
 # Install and build
-RUN git config --global --add safe.directory /app 
+RUN git config --global --add safe.directory /app
 RUN git submodule update --init
 RUN yarn install
 RUN yarn build
+RUN chown -R www-data:www-data /var/www/html
