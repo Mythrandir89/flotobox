@@ -215,7 +215,6 @@ do
                 BRANCH="stable3"
                 GIT_INSTALL=false
                 NEEDS_NODEJS_CHECK=false
-                EXTRA_PACKAGES+=('jq')
             else
                 BRANCH="dev"
                 warn "[WARN]      Invalid branch / version!"
@@ -380,18 +379,28 @@ common_software() {
             'git'
             'yarn'
         )
+    else
+        EXTRA_PACKAGES+=(
+            'jq'
+        )
     fi
 
-    # All required packages independend of Raspberry Pi.
     # Note: raspberrypi-kernel-header are needed before v4l2loopback-dkms
     if [ "$RUNNING_ON_PI" = true ]; then
         EXTRA_PACKAGES+=('raspberrypi-kernel-headers')
     fi
 
+    # Additional packages
     INSTALL_PACKAGES+=("${EXTRA_PACKAGES[@]}")
+
+    # All required packages independend of Raspberry Pi.
     INSTALL_PACKAGES+=("${COMMON_PACKAGES[@]}")
 
-    info "### Installing common software..."
+    info "### Installing common software:"
+    for required in "${INSTALL_PACKAGES[@]}"; do
+        info "[Required]  ${required}"
+    done
+
     for package in "${INSTALL_PACKAGES[@]}"; do
         if [ $(dpkg-query -W -f='${Status}' ${package} 2>/dev/null | grep -c "ok installed") -eq 1 ]; then
             info "[Package]   ${package} installed already"
@@ -436,8 +445,6 @@ nginx_webserver() {
 
     info "### Installing NGINX Webserver..."
     apt install -y nginx php${PHP_VERSION} php${PHP_VERSION}-fpm
-
-
 
     if [ -f "${nginx_site_conf}" ]; then
         info "### Enable PHP in NGINX"
@@ -568,12 +575,13 @@ start_git_install() {
         git am --whitespace=nowarn "0001-backup-changes.patch" && PATCH_SUCCESS=true || PATCH_SUCCESS=false
         if [ "$PATCH_SUCCESS" = true ]; then
             info "### Changes applied successfully!"
+            git reset --soft HEAD^
         else
             error "ERROR: can not apply your local changes automatically!"
             git am --abort
         fi
 
-        rm 0001-backup-changes.patch
+        mv 0001-backup-changes.patch $INSTALLFOLDERPATH/private/$DATE-backup-changes.patch
     fi
 
     info "### Get yourself a hot beverage. The following step can take up to 15 minutes."
@@ -891,7 +899,7 @@ start_update() {
             if [ "$PATCH_SUCCESS" = true ]; then
                 info "### Your uncommited changes have been applied successfully!"
             else
-                error "Uncommited changes couldn't be applied automatically!"
+                error "### Uncommited changes couldn't be applied automatically!"
             fi
             info "### Backup done to branch: $BACKUPBRANCH"
         fi
