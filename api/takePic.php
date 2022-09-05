@@ -99,67 +99,64 @@ if (!isset($_POST['style'])) {
     logErrorAndDie($errormsg);
 }
 
-if ($_POST['style'] === 'photo') {
-    takePicture($filename_tmp);
-} elseif ($_POST['style'] === 'collage') {
-    if (!is_numeric($_POST['collageNumber'])) {
-        $errormsg = basename($_SERVER['PHP_SELF']) . ': No or invalid collage number provided';
+switch ($_POST['style']) {
+    case 'photo':
+        takePicture($filename_tmp);
+
+        $LogData = [
+            'success' => 'image',
+            'file' => $file,
+            'php' => basename($_SERVER['PHP_SELF']),
+        ];
+        break;
+    case 'collage':
+        if (!is_numeric($_POST['collageNumber'])) {
+            $errormsg = basename($_SERVER['PHP_SELF']) . ': No or invalid collage number provided';
+            logErrorAndDie($errormsg);
+        }
+
+        $number = $_POST['collageNumber'] + 0;
+
+        if ($number > $config['collage']['limit']) {
+            $errormsg = basename($_SERVER['PHP_SELF']) . ': Collage consists only of ' . $config['collage']['limit'] . ' pictures';
+            logErrorAndDie($errormsg);
+        }
+
+        $basecollage = substr($file, 0, -4);
+        $collage_name = $basecollage . '-' . $number . '.jpg';
+
+        $basename = substr($filename_tmp, 0, -4);
+        $filename = $basename . '-' . $number . '.jpg';
+
+        takePicture($filename);
+
+        $LogData = [
+            'success' => 'collage',
+            'file' => $file,
+            'collage_file' => $collage_name,
+            'current' => $number,
+            'limit' => $config['collage']['limit'],
+            'php' => basename($_SERVER['PHP_SELF']),
+        ];
+        break;
+    case 'chroma':
+        takePicture($filename_tmp);
+
+        $LogData = [
+            'success' => 'chroma',
+            'file' => $file,
+            'php' => basename($_SERVER['PHP_SELF']),
+        ];
+        break;
+    default:
+        $errormsg = basename($_SERVER['PHP_SELF']) . ': Invalid photo style provided';
         logErrorAndDie($errormsg);
-    }
-
-    $number = $_POST['collageNumber'] + 0;
-
-    if ($number > $config['collage']['limit']) {
-        $errormsg = basename($_SERVER['PHP_SELF']) . ': Collage consists only of ' . $config['collage']['limit'] . ' pictures';
-        logErrorAndDie($errormsg);
-    }
-
-    $basecollage = substr($file, 0, -4);
-    $collage_name = $basecollage . '-' . $number . '.jpg';
-
-    $basename = substr($filename_tmp, 0, -4);
-    $filename = $basename . '-' . $number . '.jpg';
-
-    takePicture($filename);
-
-    $LogData = [
-        'success' => 'collage',
-        'file' => $file,
-        'collage_file' => $collage_name,
-        'current' => $number,
-        'limit' => $config['collage']['limit'],
-        'php' => basename($_SERVER['PHP_SELF']),
-    ];
-    $LogString = json_encode($LogData);
-    if ($config['dev']['enabled']) {
-        logError($LogData);
-    }
-    die($LogString);
-} elseif ($_POST['style'] === 'chroma') {
-    takePicture($filename_tmp);
-    $LogData = [
-        'success' => 'chroma',
-        'file' => $file,
-        'php' => basename($_SERVER['PHP_SELF']),
-    ];
-    $LogString = json_encode($LogData);
-    if ($config['dev']['enabled'] && $config['dev']['advanced_log']) {
-        logError($LogData);
-    }
-    die($LogString);
-} else {
-    $errormsg = basename($_SERVER['PHP_SELF']) . ': Invalid photo style provided';
-    logErrorAndDie($errormsg);
+        break;
 }
 
 // send imagename to frontend
-$LogData = [
-    'success' => 'image',
-    'file' => $file,
-    'php' => basename($_SERVER['PHP_SELF']),
-];
 $LogString = json_encode($LogData);
-if ($config['dev']['enabled'] && $config['dev']['advanced_log']) {
+if ($config['dev']['loglevel'] > 1) {
     logError($LogData);
 }
 die($LogString);
